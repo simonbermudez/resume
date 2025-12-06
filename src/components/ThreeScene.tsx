@@ -27,8 +27,6 @@ const LOCK_SCALE = 1;
 const LOCK_SCALE_END = 15;
 const MODEL_SCALE = 100;
 const MODEL_SCALE_RESTART = 0.7;
-const TARGET_FPS = 60;
-const FRAME_TIME = 1000 / TARGET_FPS;
 
 // Camera path constants
 const CAMERA_PATH_AMPLITUDE_XZ = 15;
@@ -77,7 +75,6 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         let scrollDirection = 0;
         let needsRender = true;
         let animationFrameId: number | null = null;
-        let lastFrameTime = performance.now();
 
         // Initialize Three.js scene
         const scene = new THREE.Scene();
@@ -374,20 +371,9 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             }
         };
 
-        // Animation loop - optimized to only render when needed
+        // Animation loop
         function animate() {
             animationFrameId = requestAnimationFrame(animate);
-            
-            // FPS throttling
-            const currentTime = performance.now();
-            const elapsed = currentTime - lastFrameTime;
-            
-            if (elapsed < FRAME_TIME) {
-                return;
-            }
-            
-            lastFrameTime = currentTime - (elapsed % FRAME_TIME);
-            
             const delta = clock.getDelta();
             let hasAnimations = false;
             
