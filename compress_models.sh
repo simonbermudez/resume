@@ -2,8 +2,9 @@
 
 # https://github.com/CesiumGS/gltf-pipeline
 
-for model in models/*.glb; 
+for model in public/models/*.glb; 
 do
   echo $model
-  gltf-pipeline -i "models/$model" -o "models/$model" -d
+  gltf-pipeline -i "$model" -o "$model" -d
 done
+
