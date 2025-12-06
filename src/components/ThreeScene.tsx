@@ -97,7 +97,6 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         const dracoLoader = new DRACOLoader();
         dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/libs/draco/');
         dracoLoader.setDecoderConfig({ type: 'js' });
-        dracoLoader.preload();
         loader.setDRACOLoader(dracoLoader);
 
         // Renderer settings
