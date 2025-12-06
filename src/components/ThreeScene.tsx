@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import Stats from 'stats.js';
 
 // Constants
 const SPEED_CAP = 30;
@@ -79,14 +78,6 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         let needsRender = true;
         let animationFrameId: number | null = null;
         let lastFrameTime = performance.now();
-
-        // Initialize Stats
-        const stats = new Stats();
-        stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
-        stats.dom.style.position = 'absolute';
-        stats.dom.style.top = '0px';
-        stats.dom.style.left = '0px';
-        containerRef.current.appendChild(stats.dom);
 
         // Initialize Three.js scene
         const scene = new THREE.Scene();
@@ -396,8 +387,6 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                 return;
             }
             
-            stats.begin();
-            
             lastFrameTime = currentTime - (elapsed % FRAME_TIME);
             
             const delta = clock.getDelta();
@@ -416,8 +405,6 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                 renderer.render(scene, camera);
                 needsRender = false;
             }
-            
-            stats.end();
         }
         animate();
 
@@ -457,11 +444,6 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             if (keyInterval) clearInterval(keyInterval);
             if (resizeTimeout) clearTimeout(resizeTimeout);
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
-
-            // Remove stats
-            if (containerRef.current && stats.dom.parentNode === containerRef.current) {
-                containerRef.current.removeChild(stats.dom);
-            }
 
             // Clean up Three.js resources
             scene.traverse((object) => {
