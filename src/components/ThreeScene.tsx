@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import Stats from 'three/addons/libs/stats.module.js';
 
 // Constants
 const SPEED_CAP = 30;
@@ -15,7 +14,7 @@ const TOUCH_INERTIA_DECAY = 0.95;
 const TOUCH_INERTIA_CAP = 0.01;
 
 // Speed factors - touch is faster, desktop is slower
-const SCROLL_FACTOR_DESKTOP = 0.0002;
+const SCROLL_FACTOR_DESKTOP = 0.0004;
 const SCROLL_FACTOR_TOUCH = 0.006;
 const KEY_INERTIA_FACTOR = 0.005;
 const KEY_INERTIA_DECAY = 0.99;
@@ -91,19 +90,9 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         );
         const clock = new THREE.Clock();
         const isMobile = isTouchDevice();
-        if (isMobile) {
-            alert('Mobile device detected - using optimized settings');
-        }
-        
-        // FPS Stats
-        const stats = new Stats();
-        stats.dom.style.position = 'absolute';
-        stats.dom.style.top = '0px';
-        stats.dom.style.left = '0px';
-        containerRef.current.appendChild(stats.dom);
         
         const renderer = new THREE.WebGLRenderer({
-            antialias: !isMobile, // Disable antialiasing on mobile for performance
+            antialias: true,
             alpha: true,
             logarithmicDepthBuffer: true,
             powerPreference: 'high-performance'
@@ -114,12 +103,12 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         dracoLoader.setDecoderConfig({ type: 'js' });
         loader.setDRACOLoader(dracoLoader);
 
-        // Renderer settings - reduce quality on mobile for performance
+        // Renderer settings
         const pixelRatio = isMobile 
             ? Math.min(window.devicePixelRatio, 1.5) 
             : Math.min(window.devicePixelRatio, 2);
         renderer.setPixelRatio(pixelRatio);
-        renderer.shadowMap.enabled = !isMobile; // Disable shadows on mobile
+        renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -308,7 +297,6 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         // Animation loop - consolidated physics and rendering
         function animate() {
             animationFrameId = requestAnimationFrame(animate);
-            stats.begin();
             
             const delta = clock.getDelta();
             let hasAnimations = false;
@@ -378,8 +366,6 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                 renderer.render(scene, camera);
                 needsRender = false;
             }
-            
-            stats.end();
         }
         requestAnimationFrame(animate);
 
@@ -436,14 +422,9 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             // Dispose renderer
             renderer.dispose();
             
-            // Remove DOM elements
-            if (containerRef.current) {
-                if (renderer.domElement.parentNode === containerRef.current) {
-                    containerRef.current.removeChild(renderer.domElement);
-                }
-                if (stats.dom.parentNode === containerRef.current) {
-                    containerRef.current.removeChild(stats.dom);
-                }
+            // Remove DOM element
+            if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
+                containerRef.current.removeChild(renderer.domElement);
             }
         };
     }, [onShowFooter, onError]);
