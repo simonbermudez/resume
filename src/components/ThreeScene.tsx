@@ -106,7 +106,7 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             antialias: !isMobile, // Disable antialiasing on mobile for performance
             alpha: true,
             logarithmicDepthBuffer: true,
-            powerPreference: isMobile ? 'low-power' : 'high-performance'
+            powerPreference: 'high-performance'
         });
         const loader = new GLTFLoader();
         const dracoLoader = new DRACOLoader();
@@ -306,20 +306,9 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         };
 
         // Animation loop - consolidated physics and rendering
-        // Frame limiting for 120Hz displays (target ~60fps)
-        const targetFrameTime = isMobile ? 1000 / 60 : 0;
-        let lastFrameTime = 0;
-        
-        function animate(currentTime: number) {
+        function animate() {
             animationFrameId = requestAnimationFrame(animate);
             stats.begin();
-            
-            // Frame limiting on mobile to reduce GPU load
-            if (isMobile && currentTime - lastFrameTime < targetFrameTime) {
-                stats.end();
-                return;
-            }
-            lastFrameTime = currentTime;
             
             const delta = clock.getDelta();
             let hasAnimations = false;
