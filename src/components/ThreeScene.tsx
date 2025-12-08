@@ -11,13 +11,19 @@ const SCROLL_FACTOR = 0.003;
 const SCROLL_DAMPING_FACTOR = 0.9;
 const SCROLL_INERTIA_THRESHOLD = 0.001;
 const SCROLL_INERTIA_CAP = 0.1;
-const TOUCH_INERTIA_DECAY = 0.97;
+const TOUCH_INERTIA_DECAY = 0.95;
 const TOUCH_INERTIA_FACTOR = 0.003;
 const TOUCH_INERTIA_CAP = 0.01;
 const KEY_INERTIA_FACTOR = 0.005;
 const KEY_INERTIA_DECAY = 0.99;
 const KEY_SPEED = 6;
 const KEY_INERTIA_CAP = 0.001;
+
+// Detect mobile/touch device
+const isTouchDevice = () => {
+    if (typeof window === 'undefined') return false;
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+};
 const FOV = 45;
 const MAX_SCALE = 90000;
 const MIN_SCALE = 0.001;
@@ -81,10 +87,15 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             1000000000
         );
         const clock = new THREE.Clock();
+        const isMobile = isTouchDevice();
+        if (isMobile) {
+            alert('Mobile device detected - using optimized settings');
+        }
         const renderer = new THREE.WebGLRenderer({
-            antialias: true,
+            antialias: !isMobile, // Disable antialiasing on mobile for performance
             alpha: true,
-            logarithmicDepthBuffer: true
+            logarithmicDepthBuffer: true,
+            powerPreference: isMobile ? 'low-power' : 'high-performance'
         });
         const loader = new GLTFLoader();
         const dracoLoader = new DRACOLoader();
@@ -92,10 +103,13 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         dracoLoader.setDecoderConfig({ type: 'js' });
         loader.setDRACOLoader(dracoLoader);
 
-        // Renderer settings
-        renderer.setPixelRatio(window.devicePixelRatio < 1.5 ? window.devicePixelRatio : 2);
+        // Renderer settings - reduce quality on mobile for performance
+        const pixelRatio = isMobile 
+            ? Math.min(window.devicePixelRatio, 1.5) 
+            : Math.min(window.devicePixelRatio, 2);
+        renderer.setPixelRatio(pixelRatio);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.type = isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         containerRef.current.appendChild(renderer.domElement);
@@ -119,11 +133,12 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         lights[6].position.set(-10, 10, -5);
         lights[7].position.set(0.1, 1.5, 0.1);
 
-        // Configure shadow-casting light
+        // Configure shadow-casting light - smaller shadow map on mobile
         const shadowLight = lights[7] as THREE.DirectionalLight;
         shadowLight.castShadow = true;
-        shadowLight.shadow.mapSize.width = 5000;
-        shadowLight.shadow.mapSize.height = 5000;
+        const shadowMapSize = isMobile ? 1024 : 2048;
+        shadowLight.shadow.mapSize.width = shadowMapSize;
+        shadowLight.shadow.mapSize.height = shadowMapSize;
         shadowLight.shadow.camera.near = 1;
         shadowLight.shadow.camera.far = 50;
         shadowLight.shadow.camera.top = 50;
@@ -279,8 +294,19 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         };
 
         // Animation loop - consolidated physics and rendering
-        function animate() {
+        // Frame limiting for 120Hz displays (target ~60fps)
+        const targetFrameTime = isMobile ? 1000 / 60 : 0;
+        let lastFrameTime = 0;
+        
+        function animate(currentTime: number) {
             animationFrameId = requestAnimationFrame(animate);
+            
+            // Frame limiting on mobile to reduce GPU load
+            if (isMobile && currentTime - lastFrameTime < targetFrameTime) {
+                return;
+            }
+            lastFrameTime = currentTime;
+            
             const delta = clock.getDelta();
             let hasAnimations = false;
             let hasMovement = false;
@@ -305,23 +331,29 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                 // Combine all input sources into one movement value
                 let totalMovement = 0;
                 
-                // Scroll inertia
+                // Scroll inertia - with explicit cleanup
                 scrollIntensity = Math.min(SCROLL_INERTIA_CAP, Math.max(-SCROLL_INERTIA_CAP, scrollIntensity));
                 if (Math.abs(scrollIntensity) > SCROLL_INERTIA_THRESHOLD) {
                     totalMovement += scrollIntensity;
                     scrollIntensity *= SCROLL_DAMPING_FACTOR;
+                } else {
+                    scrollIntensity = 0; // Clean up floating point noise
                 }
                 
-                // Touch inertia
+                // Touch inertia - with explicit cleanup
                 if (Math.abs(touchInertia) > TOUCH_INERTIA_CAP) {
                     totalMovement += touchInertia;
                     touchInertia *= TOUCH_INERTIA_DECAY;
+                } else {
+                    touchInertia = 0; // Clean up floating point noise
                 }
                 
-                // Key inertia
+                // Key inertia - with explicit cleanup
                 if (Math.abs(keyInertia) > KEY_INERTIA_CAP) {
                     totalMovement += keyInertia * KEY_INERTIA_FACTOR;
                     keyInertia *= KEY_INERTIA_DECAY;
+                } else if (!keysPressed.has('ArrowUp') && !keysPressed.has('ArrowDown')) {
+                    keyInertia = 0; // Clean up floating point noise
                 }
                 
                 // Apply movement if any
@@ -344,7 +376,7 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                 needsRender = false;
             }
         }
-        animate();
+        requestAnimationFrame(animate);
 
         // Handle window resize with debouncing
         let resizeTimeout: NodeJS.Timeout | null = null;
