@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import Stats from 'three/addons/libs/stats.module.js';
 
 // Constants
 const SPEED_CAP = 30;
@@ -93,6 +94,14 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         if (isMobile) {
             alert('Mobile device detected - using optimized settings');
         }
+        
+        // FPS Stats
+        const stats = new Stats();
+        stats.dom.style.position = 'absolute';
+        stats.dom.style.top = '0px';
+        stats.dom.style.left = '0px';
+        containerRef.current.appendChild(stats.dom);
+        
         const renderer = new THREE.WebGLRenderer({
             antialias: !isMobile, // Disable antialiasing on mobile for performance
             alpha: true,
@@ -303,9 +312,11 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         
         function animate(currentTime: number) {
             animationFrameId = requestAnimationFrame(animate);
+            stats.begin();
             
             // Frame limiting on mobile to reduce GPU load
             if (isMobile && currentTime - lastFrameTime < targetFrameTime) {
+                stats.end();
                 return;
             }
             lastFrameTime = currentTime;
@@ -378,6 +389,8 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                 renderer.render(scene, camera);
                 needsRender = false;
             }
+            
+            stats.end();
         }
         requestAnimationFrame(animate);
 
@@ -434,9 +447,14 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             // Dispose renderer
             renderer.dispose();
             
-            // Remove DOM element
-            if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
-                containerRef.current.removeChild(renderer.domElement);
+            // Remove DOM elements
+            if (containerRef.current) {
+                if (renderer.domElement.parentNode === containerRef.current) {
+                    containerRef.current.removeChild(renderer.domElement);
+                }
+                if (stats.dom.parentNode === containerRef.current) {
+                    containerRef.current.removeChild(stats.dom);
+                }
             }
         };
     }, [onShowFooter, onError]);
