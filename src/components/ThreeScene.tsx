@@ -119,7 +119,7 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             ? Math.min(window.devicePixelRatio, 1.5) 
             : Math.min(window.devicePixelRatio, 2);
         renderer.setPixelRatio(pixelRatio);
-        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.enabled = !isMobile; // Disable shadows on mobile
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
