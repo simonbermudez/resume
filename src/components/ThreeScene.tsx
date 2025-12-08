@@ -7,13 +7,15 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // Constants
 const SPEED_CAP = 30;
-const SCROLL_FACTOR = 0.003;
 const SCROLL_DAMPING_FACTOR = 0.9;
 const SCROLL_INERTIA_THRESHOLD = 0.001;
 const SCROLL_INERTIA_CAP = 0.1;
 const TOUCH_INERTIA_DECAY = 0.95;
-const TOUCH_INERTIA_FACTOR = 0.003;
 const TOUCH_INERTIA_CAP = 0.01;
+
+// Speed factors - touch is faster, desktop is slower
+const SCROLL_FACTOR_DESKTOP = 0.0002;
+const SCROLL_FACTOR_TOUCH = 0.006;
 const KEY_INERTIA_FACTOR = 0.005;
 const KEY_INERTIA_DECAY = 0.99;
 const KEY_SPEED = 6;
@@ -109,7 +111,7 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             : Math.min(window.devicePixelRatio, 2);
         renderer.setPixelRatio(pixelRatio);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         containerRef.current.appendChild(renderer.domElement);
@@ -133,12 +135,11 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         lights[6].position.set(-10, 10, -5);
         lights[7].position.set(0.1, 1.5, 0.1);
 
-        // Configure shadow-casting light - smaller shadow map on mobile
+        // Configure shadow-casting light
         const shadowLight = lights[7] as THREE.DirectionalLight;
         shadowLight.castShadow = true;
-        const shadowMapSize = isMobile ? 1024 : 2048;
-        shadowLight.shadow.mapSize.width = shadowMapSize;
-        shadowLight.shadow.mapSize.height = shadowMapSize;
+        shadowLight.shadow.mapSize.width = 5000;
+        shadowLight.shadow.mapSize.height = 5000;
         shadowLight.shadow.camera.near = 1;
         shadowLight.shadow.camera.far = 50;
         shadowLight.shadow.camera.top = 50;
@@ -253,13 +254,15 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         }
 
         // Scroll controls - just accumulate, main loop handles physics
+        const scrollFactor = isMobile ? SCROLL_FACTOR_TOUCH : SCROLL_FACTOR_DESKTOP;
+        
         const handleWheel = (event: WheelEvent) => {
             if (scrollDirection === 0) scrollDirection = event.deltaY > 0 ? 1 : -1;
             const deltaYcapped = Math.min(
                 SPEED_CAP,
                 Math.max(-SPEED_CAP, event.deltaY * scrollDirection)
             );
-            scrollIntensity += deltaYcapped * SCROLL_FACTOR;
+            scrollIntensity += deltaYcapped * scrollFactor;
         };
 
         // Touch controls - just accumulate, main loop handles physics
@@ -272,7 +275,7 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             const touchY = event.touches[0].clientY;
             const deltaY = touchY - touchStartY;
             const deltaYcapped = Math.min(SPEED_CAP, Math.max(-SPEED_CAP, deltaY));
-            touchInertia = -deltaYcapped * TOUCH_INERTIA_FACTOR;
+            touchInertia = -deltaYcapped * SCROLL_FACTOR_TOUCH;
             touchStartY = touchY;
         };
 
