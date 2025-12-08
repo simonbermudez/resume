@@ -16,10 +16,8 @@ const TOUCH_INERTIA_FACTOR = 0.003;
 const TOUCH_INERTIA_CAP = 0.01;
 const KEY_INERTIA_FACTOR = 0.005;
 const KEY_INERTIA_DECAY = 0.99;
-const KEY_SPEED_DECAY = 0.1;
 const KEY_SPEED = 6;
 const KEY_INERTIA_CAP = 0.001;
-const KEY_INTERVAL = 10;
 const FOV = 45;
 const MAX_SCALE = 90000;
 const MIN_SCALE = 0.001;
@@ -66,15 +64,13 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         // Variables
         let models: THREE.Group[] = [];
         let scrollIntensity = 0;
-        let isScrolling = false;
-        let touchStartX = 0;
         let touchStartY = 0;
-        let inertia = 0;
+        let touchInertia = 0;
         let keyInertia = 0;
-        let keyInterval: NodeJS.Timeout | null = null;
         let scrollDirection = 0;
         let needsRender = true;
         let animationFrameId: number | null = null;
+        let keysPressed: Set<string> = new Set();
 
         // Initialize Three.js scene
         const scene = new THREE.Scene();
@@ -241,33 +237,7 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             needsRender = true;
         }
 
-        // Scroll controls
-        function applyScrollInertia() {
-            if (models.length === 0) {
-                isScrolling = false;
-                return;
-            }
-            
-            scrollIntensity = Math.min(
-                SCROLL_INERTIA_CAP,
-                Math.max(-SCROLL_INERTIA_CAP, scrollIntensity)
-            );
-            if (Math.abs(scrollIntensity) > SCROLL_INERTIA_THRESHOLD) {
-                const lockScaleCondition =
-                    (models[0].scale.x > LOCK_SCALE && scrollIntensity < 0) ||
-                    (models[models.length - 1].scale.x < LOCK_SCALE_END && scrollIntensity > 0);
-
-                if (lockScaleCondition) {
-                    scaleModels(scrollIntensity);
-                    updateCameraPath();
-                }
-                scrollIntensity *= SCROLL_DAMPING_FACTOR;
-                requestAnimationFrame(applyScrollInertia);
-            } else {
-                isScrolling = false;
-            }
-        }
-
+        // Scroll controls - just accumulate, main loop handles physics
         const handleWheel = (event: WheelEvent) => {
             if (scrollDirection === 0) scrollDirection = event.deltaY > 0 ? 1 : -1;
             const deltaYcapped = Math.min(
@@ -275,109 +245,47 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                 Math.max(-SPEED_CAP, event.deltaY * scrollDirection)
             );
             scrollIntensity += deltaYcapped * SCROLL_FACTOR;
-            if (!isScrolling) {
-                isScrolling = true;
-                requestAnimationFrame(applyScrollInertia);
-            }
         };
 
-        // Touch controls
+        // Touch controls - just accumulate, main loop handles physics
         const handleTouchStart = (event: TouchEvent) => {
-            touchStartX = event.touches[0].clientX;
             touchStartY = event.touches[0].clientY;
-            inertia = 0;
+            touchInertia = 0;
         };
 
         const handleTouchMove = (event: TouchEvent) => {
-            if (models.length === 0) return;
-            
-            const touchX = event.touches[0].clientX;
             const touchY = event.touches[0].clientY;
-            const deltaYcapped = Math.min(
-                SPEED_CAP,
-                Math.max(-SPEED_CAP, touchY - touchStartY)
-            );
-            const scrollIntensity = -deltaYcapped * TOUCH_INERTIA_FACTOR;
-            const lockScaleCondition =
-                (models[0].scale.x > LOCK_SCALE && scrollIntensity < 0) ||
-                (models[models.length - 1].scale.x < LOCK_SCALE_END && scrollIntensity > 0);
-
-            if (lockScaleCondition) {
-                scaleModels(scrollIntensity);
-                updateCameraPath();
-                inertia = deltaYcapped;
-                touchStartX = touchX;
-                touchStartY = touchY;
-            }
+            const deltaY = touchY - touchStartY;
+            const deltaYcapped = Math.min(SPEED_CAP, Math.max(-SPEED_CAP, deltaY));
+            touchInertia = -deltaYcapped * TOUCH_INERTIA_FACTOR;
+            touchStartY = touchY;
         };
 
         const handleTouchEnd = () => {
-            function inertiaLoop() {
-                if (models.length === 0) return;
-                
-                if (Math.abs(inertia) > TOUCH_INERTIA_CAP) {
-                    const scrollIntensity = -inertia * TOUCH_INERTIA_FACTOR;
-                    const lockScaleCondition =
-                        (models[0].scale.x > LOCK_SCALE && scrollIntensity < 0) ||
-                        (models[models.length - 1].scale.x < LOCK_SCALE_END && scrollIntensity > 0);
-
-                    if (lockScaleCondition) {
-                        scaleModels(scrollIntensity);
-                        updateCameraPath();
-                        inertia *= TOUCH_INERTIA_DECAY;
-                        requestAnimationFrame(inertiaLoop);
-                    }
-                }
-            }
-            inertiaLoop();
+            // Inertia continues in main loop, nothing to do here
         };
 
-        // Key controls
-        function handleKeyInertia() {
-            if (models.length === 0) {
-                if (keyInterval) clearInterval(keyInterval);
-                return;
-            }
-            
-            if (Math.abs(keyInertia) > KEY_INERTIA_CAP) {
-                const scrollIntensity = keyInertia * KEY_INERTIA_FACTOR;
-                const lockScaleCondition =
-                    (models[0].scale.x > LOCK_SCALE && scrollIntensity < 0) ||
-                    (models[models.length - 1].scale.x < LOCK_SCALE_END && scrollIntensity > 0);
-
-                if (lockScaleCondition) {
-                    scaleModels(scrollIntensity);
-                    updateCameraPath();
-                    keyInertia *= KEY_INERTIA_DECAY;
-                } else {
-                    if (keyInterval) clearInterval(keyInterval);
-                }
-            } else {
-                if (keyInterval) clearInterval(keyInterval);
-            }
-        }
-
+        // Key controls - just track pressed keys, main loop handles physics
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-                if (keyInterval) clearInterval(keyInterval);
-                keyInertia = event.key === 'ArrowUp' ? -KEY_SPEED : KEY_SPEED;
-                keyInterval = setInterval(handleKeyInertia, KEY_INTERVAL);
+                keysPressed.add(event.key);
             }
         };
 
         const handleKeyUp = (event: KeyboardEvent) => {
             if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-                keyInertia *= KEY_SPEED_DECAY;
+                keysPressed.delete(event.key);
             }
         };
 
-        // Animation loop
+        // Animation loop - consolidated physics and rendering
         function animate() {
             animationFrameId = requestAnimationFrame(animate);
             const delta = clock.getDelta();
             let hasAnimations = false;
+            let hasMovement = false;
             
-            // Update animations
+            // Update model animations
             for (let i = 0; i < models.length; i++) {
                 if ((models[i] as any).mixer && models[i].visible) {
                     (models[i] as any).mixer.update(delta);
@@ -385,8 +293,53 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                 }
             }
             
+            // Process input and physics only if models are loaded
+            if (models.length > 0) {
+                // Handle key input
+                if (keysPressed.has('ArrowUp')) {
+                    keyInertia = -KEY_SPEED;
+                } else if (keysPressed.has('ArrowDown')) {
+                    keyInertia = KEY_SPEED;
+                }
+                
+                // Combine all input sources into one movement value
+                let totalMovement = 0;
+                
+                // Scroll inertia
+                scrollIntensity = Math.min(SCROLL_INERTIA_CAP, Math.max(-SCROLL_INERTIA_CAP, scrollIntensity));
+                if (Math.abs(scrollIntensity) > SCROLL_INERTIA_THRESHOLD) {
+                    totalMovement += scrollIntensity;
+                    scrollIntensity *= SCROLL_DAMPING_FACTOR;
+                }
+                
+                // Touch inertia
+                if (Math.abs(touchInertia) > TOUCH_INERTIA_CAP) {
+                    totalMovement += touchInertia;
+                    touchInertia *= TOUCH_INERTIA_DECAY;
+                }
+                
+                // Key inertia
+                if (Math.abs(keyInertia) > KEY_INERTIA_CAP) {
+                    totalMovement += keyInertia * KEY_INERTIA_FACTOR;
+                    keyInertia *= KEY_INERTIA_DECAY;
+                }
+                
+                // Apply movement if any
+                if (totalMovement !== 0) {
+                    const lockScaleCondition =
+                        (models[0].scale.x > LOCK_SCALE && totalMovement < 0) ||
+                        (models[models.length - 1].scale.x < LOCK_SCALE_END && totalMovement > 0);
+                    
+                    if (lockScaleCondition) {
+                        scaleModels(totalMovement);
+                        updateCameraPath();
+                        hasMovement = true;
+                    }
+                }
+            }
+            
             // Only render if something changed or animations are playing
-            if (needsRender || hasAnimations) {
+            if (needsRender || hasAnimations || hasMovement) {
                 renderer.render(scene, camera);
                 needsRender = false;
             }
@@ -405,11 +358,11 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             }, 100);
         };
 
-        // Add event listeners
-        window.addEventListener('wheel', handleWheel);
-        window.addEventListener('touchstart', handleTouchStart);
-        window.addEventListener('touchmove', handleTouchMove);
-        window.addEventListener('touchend', handleTouchEnd);
+        // Add event listeners with passive: true for scroll performance
+        window.addEventListener('wheel', handleWheel, { passive: true });
+        window.addEventListener('touchstart', handleTouchStart, { passive: true });
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
+        window.addEventListener('touchend', handleTouchEnd, { passive: true });
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
         window.addEventListener('resize', handleResize);
@@ -425,8 +378,7 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             window.removeEventListener('keyup', handleKeyUp);
             window.removeEventListener('resize', handleResize);
 
-            // Clear intervals and timeouts
-            if (keyInterval) clearInterval(keyInterval);
+            // Clear timeouts and animation frame
             if (resizeTimeout) clearTimeout(resizeTimeout);
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
 
