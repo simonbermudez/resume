@@ -28,8 +28,10 @@ inside the image.
 ## Option B — Dokploy "Compose"
 
 1. Create a new **Compose** service pointing at this repo.
-2. Dokploy uses `docker-compose.yml`. Attach a domain to the `web` service on
-   port 3000 (via Dokploy's domain UI, not by editing the published port).
+2. Dokploy uses `docker-compose.yml`. The service only `expose`s port 3000 on
+   the internal Docker network — it is **not** published to the host. Attach a
+   domain to the `web` service on port 3000 via Dokploy's domain UI; Traefik
+   routes to the container internally.
 3. Deploy.
 
 ## Notes
