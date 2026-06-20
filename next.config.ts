@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Standalone output for Docker / Dokploy deployment
+  output: "standalone",
+
+  // Pin the file-tracing root to this project so the standalone bundle is
+  // emitted at .next/standalone/server.js (avoids parent-lockfile root inference).
+  outputFileTracingRoot: import.meta.dirname,
+
   // Image optimization
   images: {
     formats: ['image/avif', 'image/webp'],
