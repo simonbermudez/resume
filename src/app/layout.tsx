@@ -14,18 +14,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Enric Moreu | 3D resume",
-  description: "3D resume of Enric Moreu",
-  keywords: ["3D", "resume", "Enric Moreu"],
-  authors: [{ name: "Enric Moreu" }],
+  title: "Simon Bermudez | 3D resume",
+  description: "3D resume of Simon Bermudez",
+  keywords: ["3D", "resume", "Simon Bermudez"],
+  authors: [{ name: "Simon Bermudez" }],
   openGraph: {
-    title: "Enric Moreu | 3D resume",
-    description: "3D resume of Enric Moreu",
-    url: "https://enricmor.eu",
+    title: "Simon Bermudez | 3D resume",
+    description: "3D resume of Simon Bermudez",
+    url: "https://simonbermudez.com",
     images: [
       {
         url: "/preview.png",
-        alt: "Enric Moreu 3D Resume Preview",
+        alt: "Simon Bermudez 3D Resume Preview",
       },
     ],
     type: "website",

@@ -14,7 +14,7 @@ export default function Footer({ visible }: FooterProps) {
         >
             <a
                 target="_blank"
-                href="https://www.linkedin.com/in/enricmf/"
+                href="https://www.linkedin.com/in/simonbermudez/"
                 rel="noopener noreferrer"
                 className="font-bold text-black no-underline hover:underline"
             >
@@ -23,7 +23,7 @@ export default function Footer({ visible }: FooterProps) {
             <span className="text-black"> | </span>
             <a
                 target="_blank"
-                href="https://www.github.com/enric1994/"
+                href="https://www.github.com/simonbermudez/"
                 rel="noopener noreferrer"
                 className="font-bold text-black no-underline hover:underline"
             >
@@ -32,7 +32,7 @@ export default function Footer({ visible }: FooterProps) {
             <span className="text-black"> | </span>
             <a
                 target="_blank"
-                href="https://hi.enricmor.eu/"
+                href="https://simonbermudez.com/"
                 rel="noopener noreferrer"
                 className="font-bold text-black no-underline hover:underline"
             >
