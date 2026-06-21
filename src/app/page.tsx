@@ -1,12 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ThreeScene from '@/components/ThreeScene';
 import Footer from '@/components/Footer';
 
 export default function Home() {
   const [showFooter, setShowFooter] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(true);
+
+  // Restore the saved theme preference on mount.
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) setDarkMode(saved === 'dark');
+  }, []);
+
+  // Persist the preference and toggle the page background.
+  useEffect(() => {
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+    document.body.classList.toggle('dark-mode', darkMode);
+  }, [darkMode]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -26,9 +39,22 @@ export default function Home() {
           </button>
         </div>
       )}
-      
-      <ThreeScene onShowFooter={setShowFooter} onError={setError} />
-      <Footer visible={showFooter} />
+
+      <button
+        onClick={() => setDarkMode((d) => !d)}
+        aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        className={`fixed top-4 right-4 z-40 flex h-10 w-10 items-center justify-center rounded-full border font-mono text-lg backdrop-blur-sm transition-colors ${
+          darkMode
+            ? 'border-white/20 bg-white/10 text-white hover:bg-white/20'
+            : 'border-black/10 bg-black/5 text-black hover:bg-black/10'
+        }`}
+      >
+        {darkMode ? '☀' : '☾'}
+      </button>
+
+      <ThreeScene onShowFooter={setShowFooter} onError={setError} darkMode={darkMode} />
+      <Footer visible={showFooter} darkMode={darkMode} />
     </div>
   );
 }
