@@ -61,10 +61,30 @@ const modelNames = [
 interface ThreeSceneProps {
     onShowFooter: (show: boolean) => void;
     onError: (error: string) => void;
+    darkMode: boolean;
 }
 
-export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
+// Angle (degrees) above which an edge is rendered as an outline line
+const EDGE_THRESHOLD_ANGLE = 25;
+
+// Brighten a model color so its outline stays visible on a black background
+// while keeping its original hue (the simonbermudez.com neon-wireframe look).
+function outlineColor(source: THREE.Color): THREE.Color {
+    const hsl = { h: 0, s: 0, l: 0 };
+    source.getHSL(hsl);
+    return new THREE.Color().setHSL(
+        hsl.h,
+        Math.max(hsl.s, 0.55),
+        Math.max(hsl.l, 0.6)
+    );
+}
+
+export default function ThreeScene({ onShowFooter, onError, darkMode }: ThreeSceneProps) {
     const containerRef = useRef<HTMLDivElement>(null);
+    // Keep the latest darkMode value and a way to (re)apply the theme from
+    // outside the main effect, which only runs once.
+    const darkModeRef = useRef(darkMode);
+    const applyThemeRef = useRef<((dark: boolean) => void) | null>(null);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -146,6 +166,39 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
         shadowLight.shadow.camera.right = 50;
         lights.forEach(light => scene.add(light));
 
+        // Dark-mode fill material: an opaque black surface that occludes the
+        // outline lines behind it, so only the front-facing edges show up as
+        // colored lines on a black background. Polygon offset keeps the fill
+        // from z-fighting with the edge lines drawn on top of it.
+        const darkFillMaterial = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            polygonOffset: true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits: 1
+        });
+
+        // Switch one model between the solid (light) look and the
+        // outline-only (dark) look.
+        function applyThemeToModel(model: THREE.Group | THREE.Object3D, dark: boolean) {
+            model.traverse(node => {
+                if (node instanceof THREE.Mesh && node.userData.lightMaterial) {
+                    node.material = dark ? darkFillMaterial : node.userData.lightMaterial;
+                }
+                if (node instanceof THREE.LineSegments && node.userData.isOutline) {
+                    node.visible = dark;
+                }
+            });
+        }
+
+        // Re-apply the theme to every loaded model.
+        function applyTheme(dark: boolean) {
+            for (const model of models) {
+                applyThemeToModel(model, dark);
+            }
+            needsRender = true;
+        }
+        applyThemeRef.current = applyTheme;
+
         // Function to load models
         async function loadModel(modelName: string, scale: number): Promise<THREE.Group> {
             return new Promise((resolve, reject) => {
@@ -159,11 +212,27 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                             if (node instanceof THREE.Mesh) {
                                 node.castShadow = true;
                                 node.receiveShadow = true;
-                                node.material = new THREE.MeshPhongMaterial({ 
-                                    color: node.material.color 
+                                const lightMaterial = new THREE.MeshPhongMaterial({
+                                    color: node.material.color
                                 });
+                                node.userData.lightMaterial = lightMaterial;
+                                node.material = lightMaterial;
+
+                                // Build colored outline lines for dark mode and
+                                // attach them as a child so they follow the mesh.
+                                const edges = new THREE.EdgesGeometry(node.geometry, EDGE_THRESHOLD_ANGLE);
+                                const outline = new THREE.LineSegments(
+                                    edges,
+                                    new THREE.LineBasicMaterial({
+                                        color: outlineColor(lightMaterial.color)
+                                    })
+                                );
+                                outline.userData.isOutline = true;
+                                outline.visible = darkModeRef.current;
+                                node.add(outline);
                             }
                         });
+                        applyThemeToModel(model, darkModeRef.current);
                         scene.add(model);
                         if (gltf.animations.length) {
                             const mixer = new THREE.AnimationMixer(model);
@@ -407,7 +476,7 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
 
             // Clean up Three.js resources
             scene.traverse((object) => {
-                if (object instanceof THREE.Mesh) {
+                if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
                     if (object.geometry) object.geometry.dispose();
                     if (object.material) {
                         if (Array.isArray(object.material)) {
@@ -417,7 +486,12 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
                         }
                     }
                 }
+                if (object instanceof THREE.Mesh && object.userData.lightMaterial) {
+                    object.userData.lightMaterial.dispose();
+                }
             });
+            darkFillMaterial.dispose();
+            applyThemeRef.current = null;
 
             // Dispose renderer
             renderer.dispose();
@@ -428,6 +502,12 @@ export default function ThreeScene({ onShowFooter, onError }: ThreeSceneProps) {
             }
         };
     }, [onShowFooter, onError]);
+
+    // React to theme toggles after the scene is initialized.
+    useEffect(() => {
+        darkModeRef.current = darkMode;
+        applyThemeRef.current?.(darkMode);
+    }, [darkMode]);
 
     return <div ref={containerRef} className="w-full h-screen" />;
 }

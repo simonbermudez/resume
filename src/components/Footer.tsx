@@ -2,39 +2,44 @@
 
 interface FooterProps {
     visible: boolean;
+    darkMode: boolean;
 }
 
-export default function Footer({ visible }: FooterProps) {
+export default function Footer({ visible, darkMode }: FooterProps) {
     if (!visible) return null;
+
+    const linkColor = darkMode ? 'text-white' : 'text-black';
+    const separatorColor = darkMode ? 'text-white' : 'text-black';
+    const bg = darkMode ? 'bg-white/5' : 'bg-black/10';
 
     return (
         <div
             id="footer-text"
-            className="fixed bottom-0 w-full text-center bg-black/10 py-2.5 text-[4vmin] font-mono"
+            className={`fixed bottom-0 w-full text-center py-2.5 text-[4vmin] font-mono ${bg}`}
         >
             <a
                 target="_blank"
                 href="https://www.linkedin.com/in/simonbermudez/"
                 rel="noopener noreferrer"
-                className="font-bold text-black no-underline hover:underline"
+                className={`font-bold ${linkColor} no-underline hover:underline`}
             >
                 LinkedIn
             </a>
-            <span className="text-black"> | </span>
+            <span className={separatorColor}> | </span>
             <a
                 target="_blank"
                 href="https://www.github.com/simonbermudez/"
                 rel="noopener noreferrer"
-                className="font-bold text-black no-underline hover:underline"
+                className={`font-bold ${linkColor} no-underline hover:underline`}
             >
                 GitHub
             </a>
-            <span className="text-black"> | </span>
+            <span className={separatorColor}> | </span>
             <a
                 target="_blank"
                 href="https://simonbermudez.com/"
                 rel="noopener noreferrer"
-                className="font-bold text-black no-underline hover:underline"
+                className={`font-bold ${linkColor} no-underline hover:underline`}
             >
                 Website
             </a>

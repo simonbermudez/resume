@@ -46,6 +46,11 @@
     background: linear-gradient(to bottom, #0b9ed9, #07c7f2);
   }
 
+  /* Dark mode: pure black backdrop so only the colored outline lines show */
+  body.dark-mode {
+    background: #000;
+  }
+
   canvas {
     @apply block;
   }
